@@ -215,7 +215,6 @@ static struct ppa get_new_page(struct ssd *ssd, int container_id, int is_lower_l
     struct nand_block *blk;
 
     while (1) {
-        // 构造当前 write pointer 指向的 ppa
         ppa.ppa = 0;
         ppa.g.ch  = wpp->ch;
         ppa.g.lun = wpp->lun;
@@ -226,52 +225,23 @@ static struct ppa get_new_page(struct ssd *ssd, int container_id, int is_lower_l
 
         blk = get_blk(ssd, &ppa);
 
-        // ---------- 镜像层写入 ----------
         if (is_lower_layer) {
-            // 若 block 已经被 container 层使用，跳过
-            for (int i = 0; i < MAX_CONTAINERS; i++) {
-                if (blk->container_bitmap[i]) {
-                    ssd_advance_write_pointer(ssd);
-                    goto next_try;
-                }
+            // 镜像层写入，不允许容器层写入的块
+            if (!blk->is_lower_layer) {
+                blk->is_lower_layer = true; // 标记为镜像层使用
+                return ppa;
+            } else {
+                ssd_advance_write_pointer(ssd);
+                continue;
             }
-
-            // 安全：标记为镜像层 block
-            blk->is_lower_layer = true;
+        } else {
+            // 容器层写入，跳过镜像层块
+            if (blk->is_lower_layer) {
+                ssd_advance_write_pointer(ssd);
+                continue;
+            }
             return ppa;
         }
-
-        // ---------- 容器层写入 ----------
-        // 若 block 已被标记为镜像层，容器不能写
-        if (blk->is_lower_layer) {
-            ssd_advance_write_pointer(ssd);
-            goto next_try;
-        }
-
-        // 若 block 已被其他 container 使用，跳过
-        int existing = -1;
-        for (int i = 0; i < MAX_CONTAINERS; i++) {
-            if (blk->container_bitmap[i]) {
-                existing = i;
-                break;
-            }
-        }
-
-        if (existing == -1) {
-            // 首次使用：分配给当前 container
-            blk->container_bitmap[container_id] = 1;
-            blk->is_mixed = false;
-        } else if (existing != container_id) {
-            // 已归其他 container，跳过
-            blk->is_mixed = true;  // 理论上不该出现，做自检
-            ssd_advance_write_pointer(ssd);
-            goto next_try;
-        }
-
-        return ppa;
-
-    next_try:
-        continue;
     }
 }
 
@@ -637,18 +607,6 @@ static void mark_page_valid(struct ssd *ssd, struct ppa *ppa, int container_id, 
     if (!is_lower_layer && blk->is_lower_layer) {
         fprintf(stderr, "[ERROR] Container %d tried to write to lower-layer block %d\n", container_id, ppa->g.blk);
         exit(1);
-    }
-
-    // 不允许写入已被其他 container 占用的块
-    if (!is_lower_layer) {
-        for (int i = 0; i < MAX_CONTAINERS; i++) {
-            if (blk->container_bitmap[i] && i != container_id) {
-                blk->is_mixed = true;  // 标记混用（理论上不会发生）
-                fprintf(stderr, "[ERROR] Container %d tried to write mixed block already used by container %d\n",
-                        container_id, i);
-                exit(1);
-            }
-        }
     }
 
     // -------- 设置页状态 --------
