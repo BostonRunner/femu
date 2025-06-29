@@ -583,7 +583,7 @@ static void femu_realize(PCIDevice *pci_dev, Error **errp)
         }
 
         // Ö´ÐÐ trace ÖØ·ÅÂß¼­
-        replay_trace_file(n->ssd, n->trace_path);
+        replay_trace_file(n, n->trace_path);
     }
 
 

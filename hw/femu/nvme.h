@@ -17,6 +17,7 @@
 #include "inc/pqueue.h"
 #include "nand/nand.h"
 #include "timing-model/timing.h"
+#include "hw/femu/bbssd/ftl.h"
 
 #define NVME_ID_NS_LBADS(ns)                                                  \
     ((ns)->id_ns.lbaf[NVME_ID_NS_FLBAS_INDEX((ns)->id_ns.flbas)].lbads)
@@ -1511,6 +1512,9 @@ static inline uint16_t nvme_check_mdts(FemuCtrl *n, size_t len)
 
     return NVME_SUCCESS;
 }
+
+void replay_trace_file(FemuCtrl *n, const char *filename);
+
 
 #define MN_MAX_LEN (64)
 #define ID_MAX_LEN (4)

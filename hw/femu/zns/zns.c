@@ -903,7 +903,7 @@ static uint16_t zns_nvme_rw(FemuCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     req->status = NVME_SUCCESS;
     req->nlb = nlb;
 
-    backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write);
+    backend_rw(n->mbe, &req->qsg, &data_offset, req->is_write, req->is_lower_layer, req->containerID);
 
     if(req->is_write)
     {

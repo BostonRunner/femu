@@ -915,13 +915,13 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
         }
 
         /* new write */
-        ppa = get_new_page(ssd, req->container_id, req->is_lower_layer);
+        ppa = get_new_page(ssd, req->containerID, req->is_lower_layer);
         /* update maptbl */
         set_maptbl_ent(ssd, lpn, &ppa);
         /* update rmap */
         set_rmap_ent(ssd, lpn, &ppa);
 
-        mark_page_valid(ssd, &ppa, req->container_id, req->is_lower_layer);
+        mark_page_valid(ssd, &ppa, req->containerID, req->is_lower_layer);
 
         /* need to advance the write pointer here */
         ssd_advance_write_pointer(ssd);

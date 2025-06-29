@@ -3,6 +3,7 @@
 
 #include "../nvme.h"
 #include <math.h>
+#include <stdbool.h>
 #ifndef MAX_CONTAINERS
 #define MAX_CONTAINERS 6
 #endif
@@ -91,7 +92,7 @@ struct nand_block {
     int erase_cnt;
     int wp; /* current write pointer */
     bool is_lower_layer;
-    int container_bitmap[MAX_CONTAINERS]
+    int container_bitmap[MAX_CONTAINERS];
     bool is_mixed; /* whether this block is mixed */
 };
 
@@ -220,6 +221,8 @@ struct ssd {
 };
 
 void ssd_init(FemuCtrl *n);
+
+static void bb_init(FemuCtrl *n, Error **errp);
 
 #ifdef FEMU_DEBUG_FTL
 #define ftl_debug(fmt, ...) \

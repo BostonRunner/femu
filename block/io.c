@@ -38,6 +38,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "sysemu/replay.h"
+#include "hw/femu/nvme.h"
 
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
@@ -3771,22 +3772,30 @@ void replay_trace_file(FemuCtrl *n, const char *filename) {
         int container_id;
 
         // 解析一行
-        int fields = sscanf(line, "%lld %s %c %lu %d %d %d",
+        int fields = sscanf(line, "%ld %s %c %lu %d %d %d",
                             &time, device, &op, &lsn, &size, &is_lower, &container_id);
         if (fields < 7 || op != 'W') continue;  // 只处理写请求
 
         // 构造 NvmeRequest
         NvmeRequest *req = g_new0(NvmeRequest, 1);
+        NvmeCmd cmd = {0};
         req->slba = lsn;
-        req->nlb = size;
+        req->nlb = size - 1;
         req->stime = time;  // 简化处理时间戳
         req->is_write = 1;
         req->is_lower_layer = is_lower;
-        req->container_id = container_id;
+        req->containerID = container_id;
+
+        cmd.cdw10 = lsn & 0xFFFFFFFF;
+        cmd.cdw11 = (lsn >> 32) & 0xFFFFFFFF;
+        cmd.cdw12 = req->nlb;
+
+        NvmeNamespace *ns = &n->namespaces[0]; // 使用第一个 namespace
+
 
         // 触发写入路径（可替换成你的主路径）
         //ssd_write(ssd, req);
-        nvme_rw(n, req);
+        nvme_rw(n, ns, &cmd, req);
 
         free(req);
     }
